@@ -1,10 +1,15 @@
 import UnityEngine.SceneManagement;
+import System.Collections.Generic;
+import System.IO;
+
+
 
 //The coin shower particle effect
 public var coinShower : ParticleSystem;
 
 //The special audio source
-public var specialAudio : AudioSource;
+public var specialAudio: AudioSource;
+public var specialAudio_Lose : AudioSource;
 
 //The object shown when we have free spins
 public var scatterObject : GameObject;
@@ -32,7 +37,9 @@ public var iconsPerReelDifference : int;
 public var iconSize : float;
 
 //The speed at which the reels spin (Restricted between 50 and 200)
-@Range(50, 200)
+//@Range(50, 200)
+//@Range(10, 50) Original
+@Range(1,5)
 public var spinSpeed : float;
 
 //The amount of bounce of a reel when it stops (Restricted between 0 and 5)
@@ -113,21 +120,43 @@ private var scatterTimer : float;
 private var effectsTimer : float;
 private var totalPayout : float;
 private var targetPos : float;
-private var currentBet : float = 3.0;
+private var currentBet : float = 10.0;
 private var fadeValue : float = 1;
 private var picks : int = 0;
 private var touching : boolean;
 private var csEmittion : ParticleSystem.EmissionModule;
 //variable for leap Trigger
 
+//variable for wincount
+//public var winCount :int = 1;
+public var winCount :int = 1;
+public var spinCount :int = 0;
+public var reelLineCount : int;
+
 public var leapTrigger : boolean;
 
 public var leapPosition : Vector3;
 
+public var dictionaryTextFile : TextAsset;
+
+private var theWholeFileAsOneongString : String;
+//private var eachLine : List<String>;
+
+public var pureString : String[];
+public var seperator : char[] = [","[0]];
+public var reelStopCombination = new Array();
+public var scene;
+public var hitCountObject : GameObject;
+public var hitCount = 0;
 
 //////////Called before any other code//////////
 function Awake()
 {
+	readFile();
+	winCount = 1;
+	reelLineCount = -2;
+
+	//UnityEditor.AssetDatabase.ImportAsset("NewShaderVariants");
 	//If we an object in the scene with the tag Player
 	if(GameObject.FindWithTag("Player"))
 	{
@@ -147,6 +176,7 @@ function Awake()
 	
 	//Generate entirely new reels
 	GenerateNewReels();
+
 	
 	//For all the reels
 	for(var a = 0; a < reelInfo.Length; a++)
@@ -169,12 +199,73 @@ function Awake()
 	
 	//Ensure we can see the reels
 	fadeValue = 1;
+
+	//facesprites Ashwini
+	//Debug.Log("sprite info " + 
+	//reelInfo[0].slotOrder[0].sprite.GetComponent.<SpriteRenderer>().enabled = false;
+
+	//Ashwini
+	//scene = SceneManager.GetActiveScene();
+	//Debug.Log("SceneName : " + scene.name);
+
 }
+//public var reelStopCombination : String[] = new String[100];
+
+//Ashwini
+
+function Start(){
+	hitCountObject = GameObject.Find("HitCountInfo");
+}
+function readFile()
+{
+	//theWholeFileAsOneongString = dictionaryTextFile.text;
+
+	try{
+		sr = new StreamReader("reelcombination.txt");
+		//var reelStopCombination = new List.<>();
+
+		line = sr.ReadLine();
+		while(line != null){
+			pureString = line.Split(seperator);
+			reelStopCombination.push(pureString);
+
+
+			//reelStopCombination.Add(pureString[0]+" "+pureString[1]+" "+pureString[2]+" "+pureString[3]+" "+pureString[4]);
+			line = sr.ReadLine();
+		}
+		//for(var i=0; i < 5; i++){
+				//Debug.Log(reelStopCombination.length);
+				//reelStopCombination[i] = reelStopCombination[i-1] +  pureString[i];
+			//}
+		sr.close();
+			//for(var a=0; a < reelStopCombination.Length; a++){
+				//Debug.Log(pureString[a][j]);
+		//}
+	}
+	catch(e){
+		//Debug.Log("The file could not be read");
+		//Debug.Log(e.Message);
+	}
+
+
+	//eachLine = new List<string>();
+	//eachLine.AddRange(theWholeFileAsOneongString.Split("\n"[0]));
+
+	//Debug.Log(eachLine[1]);
+}
+
 
 
 //////////Called every frame//////////
 function Update()
 {
+	//reelInfo[0].slotOrder[0].sprite.GetComponent.<SpriteRenderer>().enabled = false;
+	//T quit application
+	if (Input.GetKeyDown ("escape")){
+        print ("space key was pressed");
+        Application.Quit();
+     }
+
 	//If we changed the of symbols per reel
 	if(prevIconCount != iconsPerReel)
 	{
@@ -266,7 +357,9 @@ function Update()
 	if(spinning)
 	{
 		//Increase our spin speed over time
-		curSpinSpeed = Mathf.Lerp(curSpinSpeed, spinSpeed, Time.deltaTime);
+		//curSpinSpeed = Mathf.Lerp(curSpinSpeed, spinSpeed, Time.deltaTime);
+		curSpinSpeed = Mathf.Lerp(10.0f, spinSpeed, Time.deltaTime);
+		//Debug.Log("Spin Speed: " + spinSpeed);
 		
 		//For all the reels
 		for(var i = 0; i < 5; i++)
@@ -294,6 +387,12 @@ function Update()
 	//If we are supposed to be displaying our winning effects
 	if(displayWinningEffects)
 	{
+		//to alter frequency for Winning icon //Ashwini
+		//changeIconFrequency();
+		//Ashwini End
+		//GetComponent<AudiSource>().AudioClip.;
+		//specialAudio.Play();
+
 	    //If our coins should be incrementing
 	    csEmittion = coinShower.emission;
 		if(userData.fluxCoins != userData.coins && csEmittion.enabled == false)
@@ -479,6 +578,7 @@ function PayTable()
 function UpdateTotalWin(text : TextMesh)
 {
 	//If we did not win anything
+	var count = 0;
 	if(totalPayout == 0)
 	{
 		//Don't show a winning amount
@@ -490,7 +590,14 @@ function UpdateTotalWin(text : TextMesh)
 	{
 		//Show our winning amount
 		text.text = totalPayout.ToString();
+
+	//to alter frequency for Winning icon //Ashwini
+	//changeIconFrequency();
+	//count++;
+	//Debug.Log("IconFrenquency Changed: " + count);
 	}
+	changeIconFrequency();
+
 }
 
 
@@ -551,17 +658,37 @@ function LightenButtons()
 //My function for leap trigger
 
 function leapSpin(position : Vector3){
+		//hitCount = hitCount + 1;
+    	//hitCountObject.GetComponent(TextMesh).text = hitCount.ToString();
 		leapTrigger = true;
 		leapPosition = position;
 }
 
 
+//To change the frquency of occurence of all symbols for frequent wins
+function changeIconFrequency(){
+	for(var i =0; i < iconInfo.Length - 2; i++){
+		iconInfo[i].frequency = 2;
+	}
+ 	var randomIcon1 = Random.Range(0, iconInfo.Length - 1);
+
+ 	iconInfo[randomIcon1].frequency = 0;
+ 	//iconInfo[randomIcon2].frequency = 0;
+ 	//Debug.Log("Random Icon Name " + iconInfo[randomIcon1].Name);
+ 	//Debug.Log("Random Icon Frequency Now " + iconInfo[randomIcon2].Name);
+
+}
+//end myCode
+
+
 //////////Left mouse click / Finger push function with a position parameter to check for buttons//////////
 function Click(position : Vector3)
 {
+	//changeIconFrequency();
 	//trying to get position of Spin Button
-	print("Spin POsition: " + position);
+	//print("Spin POsition: " + position);
 	//Ray that is drawn based on the click/touch position and our main camera
+
 	var ray : Ray = GetComponent.<Camera>().ScreenPointToRay(position);
 	
 	//The hit of the ray
@@ -585,6 +712,7 @@ function Click(position : Vector3)
 						if(scattersLeft == 0)
 						{
 							//Call the spin function with parameters to deduct coins
+
 							gameObject.SendMessage(button.functionType.ToString(), lineCount * betAmounts[currentBet]);
 						}
 					}
@@ -658,6 +786,7 @@ function ClickBonus(position : Vector3)
 //////////Generate entirely new reels//////////
 function GenerateNewReels()
 {
+	reelLineCount = reelLineCount + 3;
 	//Store the previous icons that were on the screen
 	StorePreviousFaceIcons();
 	
@@ -666,9 +795,18 @@ function GenerateNewReels()
 	
 	//And create new Reels
 	UpdateAmountOfReels();
+	UpdateIconsPerReel_staged();
+
+	//if(winCount % 6 == 0){
+		//UpdateIconsPerReel_staged();
+		//UpdateIconsPerReel();
+	//}
+	//else
+	//{
+	//	UpdateIconsPerReel();
+	//}
+
 	
-	//Update the new symbols
-	UpdateIconsPerReel();
 	
 	//And create a list of symbols that will display on the screen
 	PopulateFaceIcons();
@@ -710,6 +848,19 @@ function GetLargestBet()
 //////////Spins the reels and deducts the price//////////
 function Spin(Deduction : float)
 {
+	//Ashwini
+	//hitCount = hitCount + 1;
+   	hitCountObject.GetComponent(TextMesh).text = hitCount.ToString();
+	winCount = winCount + 1;
+
+	if(spinCount == reelStopCombination.length - 1){
+		spinCount = 0;
+	}
+	else{
+		spinCount = spinCount + 1;
+		hitCountObject.GetComponent(TextMesh).text = spinCount.ToString();
+	}
+	//Debug.Log("Wincount: " + winCount);
 	//If we are not spinning, in a bonus game, in a free spin and we have user information
 	if(!spinning && !inBonusGame && !scatterSpinning && userData)
 	{
@@ -798,6 +949,8 @@ function StorePreviousFaceIcons()
 	{
 		//The previous symbols on the screen is the same as the ones on the screen right now
 		prevFaceIcons = faceIcons;
+		//prevFaceIcons[3] = prevFaceIcons[0];
+		//prevFaceIcons[6] = prevFaceIcons[0];
 	}
 }
 
@@ -815,15 +968,23 @@ function PopulateFaceIcons()
 	for(var a = 0; a < reelInfo.Length; a++)
 	{
 		var extraIcons = a * iconsPerReelDifference;
-		
-		faceIcons[a * 3] = reelInfo[a].slotOrder[iconsPerReel + extraIcons - 1].ID;
-		faceSprites[a * 3] = iconsPerReel + extraIcons - 1;
-			
+
 		faceIcons[a * 3 + 1] = reelInfo[a].slotOrder[iconsPerReel + extraIcons - 2].ID;
-		faceSprites[a * 3 + 1] = iconsPerReel + extraIcons - 2;
+		//akk commented the below line for middle working
+		//faceIcons[a * 3] = reelInfo[a].slotOrder[iconsPerReel + extraIcons - 1].ID;
+		//Debug.Log("faceIcon :" + faceIcons[a * 3]);
+		faceSprites[a * 3] = iconsPerReel + extraIcons - 1;
+		//Debug.Log("faceSprites :" + faceSprites[a * 3]);
+
+		//Ashwini trial to get winning combination
+		//faceIcons[a * 3] = 1;
+		//faceSprites[a * 3] = 13;
 			
-		faceIcons[a * 3 + 2] = reelInfo[a].slotOrder[iconsPerReel + extraIcons - 3].ID;
-		faceSprites[a * 3 + 2] = iconsPerReel + extraIcons - 3;
+		//faceIcons[a * 3 + 1] = reelInfo[a].slotOrder[iconsPerReel + extraIcons - 2].ID;
+		//faceSprites[a * 3 + 1] = iconsPerReel + extraIcons - 2;
+			
+		//faceIcons[a * 3 + 2] = reelInfo[a].slotOrder[iconsPerReel + extraIcons - 3].ID;
+		//faceSprites[a * 3 + 2] = iconsPerReel + extraIcons - 3;
 	}
 }
 
@@ -985,6 +1146,9 @@ function CalculatePayout()
 					if(b < 4)
 					{
 						if(payoutIcon.ID != faceIcons[linesInfo.lineInfo[a].lineNumbers[b + 1]] && iconInfo[faceIcons[linesInfo.lineInfo[a].lineNumbers[b + 1]]].iconType != iconInfo[faceIcons[linesInfo.lineInfo[a].lineNumbers[b + 1]]].iconType.Wild)
+
+						//akk
+						//if(1 != faceIcons[linesInfo.lineInfo[a].lineNumbers[b + 1]-1] && iconInfo[faceIcons[linesInfo.lineInfo[a].lineNumbers[b + 1]]].iconType != iconInfo[faceIcons[linesInfo.lineInfo[a].lineNumbers[b + 1]]].iconType.Wild)
 						{
 							var Aamount = b + 1;
 							var AlIne = a + 1;
@@ -995,7 +1159,8 @@ function CalculatePayout()
 				}
 			}
 		}
-		
+		//attempting to debug middleline payout
+		//payoutIcon.amount = 2;
 		//If our payout starts from the right
 		if(payoutOrder == 1)
 		{
@@ -1148,7 +1313,7 @@ function CalculatePayout()
 			if(iconInfo[payoutIcon.ID].iconType == iconInfo[payoutIcon.ID].iconType.Normal || iconInfo[payoutIcon.ID].iconType == iconInfo[payoutIcon.ID].iconType.Wild)
 			{
 				linesInfo.lineInfo[a].winningValue = iconInfo[payoutIcon.ID].xFive * betAmounts[currentBet];
-				linesInfo.lineInfo[a].winner = true;
+				linesInfo.lineInfo[a].winner = false;
 				linesInfo.lineInfo[a].winningIconIDs = new int[5];
 				if(payoutOrder == 0)
 				{
@@ -1199,6 +1364,8 @@ function StopReel(key : int)
 			}
 			if(line.winner)
 			{
+				//Ashwini winner count
+				winCount = 0;
 				for(var i = 0; i < line.winningIconIDs.Length; i++)
 				{
 					if(payoutOrder == 0)
@@ -1236,7 +1403,14 @@ function StopReel(key : int)
 		if(payout > 0.0)
 		{
 			AddCoins(payout, true);
+			//AddCoins(1, true);
+			//AddCoins(100, true);
 			displayWinningEffects = true;
+			specialAudio.Play();
+		}
+		else {
+			yield WaitForSeconds (1);
+			//specialAudio_Lose.Play();
 		}
 		if(scattersLeft == 0)
 		{
@@ -1644,9 +1818,149 @@ function UpdateAmountOfReels()
 		reelInfo[i].reel.GetComponent.<AudioSource>().playOnAwake = false;
 	}
 }
+//funtion update by Ashwini
+function UpdateIconsPerReel_staged()
+{
+	var randomIconCount = 0;
+	//Debug.Log("IconInfo :" + iconInfo);
+	for(var a = 0; a < reelInfo.Length; a++)
+	{
+		
+		var extraIcons = a * iconsPerReelDifference;
+		System.Array.Resize.<SlotInfo>(reelInfo[a].slotOrder, iconsPerReel + extraIcons);
+		for(var i = 0; i < iconsPerReel + extraIcons; i++)
+		{
+			//if(i == (iconsPerReel + extraIcons -1)){
+			//Debug.Log("I am end of reel: " + a);
+			//}
+			reelInfo[a].slotOrder[i] = new SlotInfo();
+			var newSprite = new GameObject();
+			newSprite.AddComponent.<SpriteRenderer>();
+			newSprite.name = "Slot " + i.ToString();
+			reelInfo[a].slotOrder[i].sprite = newSprite;
+			scene = SceneManager.GetActiveScene();
+			if(scene.name == "NoReel"){
+				reelInfo[a].slotOrder[i].sprite.GetComponent.<SpriteRenderer>().enabled = false;
+			}
+			reelInfo[a].slotOrder[i].sprite.transform.localScale = Vector3(iconSize, iconSize, 1);
+			if(iconInfo.Length > 0)
+			{
+				var randomIcon : int;
+				var randomIcon1 : int;
+				//randomIcon1 = Random.Range(0, 8);
+				//reelLineCount = reelLineCount + 3;
+				for(;;)
+				{
+					//if(i==0){
+					if(a==0 && i == iconsPerReel + extraIcons -1){
+						randomIcon = parseInt(reelStopCombination[reelLineCount - 1 ][0]);
+						//randomIcon = 1;
+						//Debug.Log("I am 1: " + randomIcon);
+						}
+						else if(a==1 && i== iconsPerReel + extraIcons - 1){
+							randomIcon = parseInt(reelStopCombination[reelLineCount - 1][1]);
+							//Debug.Log("I am 2: " + randomIcon);
+						}
+						else if(a==2 && i== iconsPerReel + extraIcons - 1){
+							randomIcon = parseInt(reelStopCombination[reelLineCount - 1][2]);
+							//Debug.Log("I am 3: " + randomIcon);
+						}
+						else if(a==3 && i== iconsPerReel + extraIcons - 1){
+							randomIcon = parseInt(reelStopCombination[reelLineCount - 1][3]);
+						}
+						else if(a==4 && i== iconsPerReel + extraIcons - 1){
+							randomIcon = parseInt(reelStopCombination[reelLineCount - 1][4]);
+						}
+						else if(a==0 && i == iconsPerReel + extraIcons -2){
+						randomIcon = parseInt(reelStopCombination[reelLineCount][0]);
+						//randomIcon = 1;
+						//Debug.Log("I am 1: " + randomIcon);
+						}
+						else if(a==1 && i== iconsPerReel + extraIcons - 2){
+							randomIcon = parseInt(reelStopCombination[reelLineCount][1]);
+							//Debug.Log("I am 2: " + randomIcon);
+						}
+						else if(a==2 && i== iconsPerReel + extraIcons - 2){
+							randomIcon = parseInt(reelStopCombination[reelLineCount][2]);
+							//Debug.Log("I am 3: " + randomIcon);
+						}
+						else if(a==3 && i== iconsPerReel + extraIcons - 2){
+							randomIcon = parseInt(reelStopCombination[reelLineCount][3]);
+						}
+						else if(a==4 && i== iconsPerReel + extraIcons - 2){
+							randomIcon = parseInt(reelStopCombination[reelLineCount][4]);
+						}
+								
+						else if(a==0 && i == iconsPerReel + extraIcons -3){
+						randomIcon = parseInt(reelStopCombination[reelLineCount + 1][0]);
+						//randomIcon = 1;
+						//Debug.Log("I am 1: " + randomIcon);
+						}
+						else if(a==1 && i== iconsPerReel + extraIcons - 3){
+							randomIcon = parseInt(reelStopCombination[reelLineCount + 1][1]);
+							//Debug.Log("I am 2: " + randomIcon);
+						}
+						else if(a==2 && i== iconsPerReel + extraIcons - 3){
+							randomIcon = parseInt(reelStopCombination[reelLineCount + 1][2]);
+							//Debug.Log("I am 3: " + randomIcon);
+						}
+						else if(a==3 && i== iconsPerReel + extraIcons - 3){
+							randomIcon = parseInt(reelStopCombination[reelLineCount + 1][3]);
+						}
+						else if(a==4 && i== iconsPerReel + extraIcons - 4){
+							randomIcon = parseInt(reelStopCombination[reelLineCount + 1][4]);
+						}
+						else{
+						randomIcon = Random.Range(0, 8);
+						}
+					//}
+					//else{
+						//randomIcon = Random.Range(0, 8);
+					//}
+						break;
+					
+				}
+				//reelLineCount = reelLineCount + 3;
+
+				if(!iconsSet)
+				{
+					
+					reelInfo[a].slotOrder[i].ID = randomIcon;
+					//reelInfo[0].slotOrder[0].ID = 2;
+					//Debug.Log("RandomIcon: " + randomIcon);
+				}
+				if(iconsSet)
+				{
+					if(i < 3)
+					{
+						var row = 2 - i;
+						reelInfo[a].slotOrder[i].ID = prevFaceIcons[a * 3 + row];
+						//reelInfo[a].slotOrder[i].ID = prevFaceIcons[a * 3];
+					}
+					else
+					{
+						reelInfo[a].slotOrder[i].ID = randomIcon;
+					}
+				}
+				//Debug.Log("a= " + a + "- " + "i=" + i);
+				reelInfo[a].slotOrder[i].sprite.GetComponent.<SpriteRenderer>().sprite = iconInfo[reelInfo[a].slotOrder[i].ID].sprite;
+				reelInfo[a].slotOrder[i].size = Vector2(reelInfo[a].slotOrder[i].sprite.GetComponent.<SpriteRenderer>().bounds.extents.x * 2, reelInfo[a].slotOrder[i].sprite.GetComponent.<SpriteRenderer>().bounds.extents.y * 2);
+				reelInfo[a].slotOrder[i].sprite.transform.position = Vector3(a * reelInfo[a].slotOrder[i].size.x - reelInfo[a].slotOrder[i].size.x * 2.5, reelInfo[a].reel.transform.position.y + i * reelInfo[a].slotOrder[i].size.y, 0);
+			}
+			newSprite.transform.parent = reelInfo[a].reel.transform;
+		}
+		RepositionReel(a, -reelInfo[a].slotOrder[0].size.y);
+		var offset = iconsPerReel + extraIcons - 2;
+		reelInfo[a].targetPosition = reelInfo[a].slotOrder[0].size.y * -offset;
+	}
+	prevIconCount = iconsPerReel;
+}
+
+
 
 function UpdateIconsPerReel()
 {
+	//Debug.Log("IconInfo :" + iconInfo);
 	for(var a = 0; a < reelInfo.Length; a++)
 	{
 		var extraIcons = a * iconsPerReelDifference;
@@ -1675,6 +1989,7 @@ function UpdateIconsPerReel()
 				if(!iconsSet)
 				{
 					reelInfo[a].slotOrder[i].ID = randomIcon;
+					//Debug.Log("RandomIcon: " + randomIcon);
 				}
 				if(iconsSet)
 				{
@@ -1682,6 +1997,7 @@ function UpdateIconsPerReel()
 					{
 						var row = 2 - i;
 						reelInfo[a].slotOrder[i].ID = prevFaceIcons[a * 3 + row];
+						//reelInfo[a].slotOrder[i].ID = prevFaceIcons[a * 3];
 					}
 					else
 					{
